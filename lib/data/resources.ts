@@ -3,9 +3,9 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import type { SessionUser } from "@/lib/data/types"
 
-export const MASTER_CACHE_TAG = "masters"
+export const RESOURCES_CACHE_TAG = "resources"
 
-const masterInclude = {
+const resourceInclude = {
   department: {
     select: {
       id: true,
@@ -27,13 +27,13 @@ const masterInclude = {
   },
 } satisfies Prisma.MasterRecordInclude
 
-export type MasterWithRelations = Prisma.MasterRecordGetPayload<{
-  include: typeof masterInclude
+export type ResourceWithRelations = Prisma.MasterRecordGetPayload<{
+  include: typeof resourceInclude
 }>
 
 const MANAGE_ROLES = new Set<SessionUser["role"]>(["admin", "hr"])
 
-export type CreateMasterInput = {
+export type CreateResourceInput = {
   name: string
   slug?: string | null
   description?: string | null
@@ -53,7 +53,7 @@ const baseSlug = (value: string) =>
 async function ensureUniqueSlug(nameOrSlug: string) {
   const normalized = baseSlug(nameOrSlug)
   if (!normalized) {
-    throw new Error("El nombre o slug del maestro no es válido")
+    throw new Error("El nombre o slug del recurso no es válido")
   }
 
   let candidate = normalized
@@ -74,21 +74,21 @@ async function ensureUniqueSlug(nameOrSlug: string) {
   }
 }
 
-export async function listMasters() {
+export async function listResources() {
   return prisma.masterRecord.findMany({
-    include: masterInclude,
+    include: resourceInclude,
     orderBy: { createdAt: "desc" },
   })
 }
 
-export async function createMaster(input: CreateMasterInput, user: SessionUser) {
+export async function createResource(input: CreateResourceInput, user: SessionUser) {
   if (!MANAGE_ROLES.has(user.role)) {
-    throw new Error("No tienes permisos para crear recursos maestros")
+    throw new Error("No tienes permisos para crear recursos estratégicos")
   }
 
   const name = input.name?.trim()
   if (!name) {
-    throw new Error("El nombre del maestro es obligatorio")
+    throw new Error("El nombre del recurso es obligatorio")
   }
 
   const initialBalance = new Prisma.Decimal(input.initialBalance ?? 0)
@@ -109,16 +109,20 @@ export async function createMaster(input: CreateMasterInput, user: SessionUser) 
       createdById: user.id,
       status: input.status?.trim() || "active",
     },
-    include: masterInclude,
+    include: resourceInclude,
   })
 }
 
-export async function updateBalance(masterId: string, delta: Prisma.Decimal.Value, tx?: Prisma.TransactionClient) {
+export async function updateResourceBalance(
+  resourceId: string,
+  delta: Prisma.Decimal.Value,
+  tx?: Prisma.TransactionClient,
+) {
   const amount = new Prisma.Decimal(delta)
   const client = tx ?? prisma
 
   const master = await client.masterRecord.findUnique({
-    where: { id: masterId },
+    where: { id: resourceId },
     select: { id: true, currentBalance: true },
   })
 
@@ -134,10 +138,10 @@ export async function updateBalance(masterId: string, delta: Prisma.Decimal.Valu
   }
 
   return client.masterRecord.update({
-    where: { id: masterId },
+    where: { id: resourceId },
     data: {
       currentBalance: nextBalance,
     },
-    include: masterInclude,
+    include: resourceInclude,
   })
 }

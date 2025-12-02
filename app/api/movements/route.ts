@@ -5,16 +5,18 @@ import { z } from "zod"
 
 import { getSessionUser } from "@/lib/api/session"
 import { buildErrorResponse } from "@/lib/api/errors"
-import { MASTER_CACHE_TAG } from "@/lib/data/masters"
+import { RESOURCES_CACHE_TAG } from "@/lib/data/resources"
 import {
   createMovement,
-  listMovementsByMaster,
+  listMovementsByResource,
   movementTag,
   type MovementWithRelations,
 } from "@/lib/data/movements"
 
-const createMovementSchema = z.object({
-  masterId: z.string().min(1, "El maestro es obligatorio"),
+const createMovementSchema = z
+  .object({
+    resourceId: z.string().min(1, "El recurso es obligatorio").optional().nullable(),
+    masterId: z.string().min(1, "El recurso es obligatorio").optional().nullable(),
   movementType: z.nativeEnum(MovementType, {
     errorMap: () => ({ message: "Tipo de movimiento inválido" }),
   }),
@@ -31,13 +33,17 @@ const createMovementSchema = z.object({
     .max(50, "El periodo de referencia es muy largo")
     .optional()
     .nullable(),
-  metadata: z.record(z.any()).optional(),
-})
+    metadata: z.record(z.any()).optional(),
+  })
+  .refine((data) => data.resourceId || data.masterId, {
+    message: "El recurso es obligatorio",
+    path: ["resourceId"],
+  })
 
 const serializeMovement = (movement: MovementWithRelations) => ({
   id: movement.id,
-  masterId: movement.masterId,
-  master: movement.master
+  resourceId: movement.masterId,
+  resource: movement.master
     ? {
         id: movement.master.id,
         name: movement.master.name,
@@ -65,14 +71,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url)
-  const masterId = searchParams.get("masterId")
+  const resourceId = searchParams.get("resourceId") ?? searchParams.get("masterId")
 
-  if (!masterId) {
-    return NextResponse.json({ error: "Debes indicar el maestro" }, { status: 400 })
+  if (!resourceId) {
+    return NextResponse.json({ error: "Debes indicar el recurso" }, { status: 400 })
   }
 
   try {
-    const movements = await listMovementsByMaster(masterId)
+    const movements = await listMovementsByResource(resourceId)
     return NextResponse.json(movements.map(serializeMovement))
   } catch (error) {
     return buildErrorResponse(error)
@@ -99,9 +105,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const movement = await createMovement(parsed.data, user)
-    revalidateTag(MASTER_CACHE_TAG)
-    revalidateTag(movementTag(parsed.data.masterId))
+    const payload = {
+      ...parsed.data,
+      resourceId: parsed.data.resourceId ?? parsed.data.masterId ?? "",
+    }
+
+    const movement = await createMovement(payload, user)
+    revalidateTag(RESOURCES_CACHE_TAG)
+    revalidateTag(movementTag(payload.resourceId))
     return NextResponse.json(serializeMovement(movement), { status: 201 })
   } catch (error) {
     return buildErrorResponse(error)

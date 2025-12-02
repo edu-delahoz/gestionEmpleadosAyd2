@@ -2,11 +2,12 @@ import { MovementType, Prisma } from "@prisma/client"
 
 import { prisma } from "@/lib/prisma"
 import type { SessionUser } from "@/lib/data/types"
-import { updateBalance } from "@/lib/data/masters"
+import { updateResourceBalance } from "@/lib/data/resources"
 
 export const MOVEMENTS_CACHE_TAG = "movements"
 
-export const movementTag = (masterId?: string) => (masterId ? `${MOVEMENTS_CACHE_TAG}:${masterId}` : MOVEMENTS_CACHE_TAG)
+export const movementTag = (resourceId?: string) =>
+  resourceId ? `${MOVEMENTS_CACHE_TAG}:${resourceId}` : MOVEMENTS_CACHE_TAG
 
 const MOVEMENT_ROLES = new Set<SessionUser["role"]>(["employee", "manager", "hr", "admin"])
 
@@ -33,7 +34,7 @@ export type MovementWithRelations = Prisma.InventoryMovementGetPayload<{
 }>
 
 export type CreateMovementInput = {
-  masterId: string
+  resourceId: string
   movementType: MovementType
   quantity: Prisma.Decimal.Value
   notes?: string | null
@@ -41,13 +42,13 @@ export type CreateMovementInput = {
   metadata?: Prisma.JsonValue
 }
 
-export async function listMovementsByMaster(masterId: string) {
-  if (!masterId) {
-    throw new Error("Debes indicar el maestro a consultar")
+export async function listMovementsByResource(resourceId: string) {
+  if (!resourceId) {
+    throw new Error("Debes indicar el recurso a consultar")
   }
 
   return prisma.inventoryMovement.findMany({
-    where: { masterId },
+    where: { masterId: resourceId },
     include: movementInclude,
     orderBy: { createdAt: "desc" },
   })
@@ -58,8 +59,8 @@ export async function createMovement(input: CreateMovementInput, user: SessionUs
     throw new Error("No tienes permisos para crear movimientos")
   }
 
-  if (!input.masterId) {
-    throw new Error("El maestro es obligatorio")
+  if (!input.resourceId) {
+    throw new Error("El recurso es obligatorio")
   }
 
   const rawQuantity = new Prisma.Decimal(input.quantity ?? 0)
@@ -98,11 +99,11 @@ export async function createMovement(input: CreateMovementInput, user: SessionUs
   }
 
   return prisma.$transaction(async (tx) => {
-    await updateBalance(input.masterId, delta, tx)
+    await updateResourceBalance(input.resourceId, delta, tx)
 
     return tx.inventoryMovement.create({
       data: {
-        masterId: input.masterId,
+        masterId: input.resourceId,
         performedById: user.id,
         movementType: input.movementType,
         quantity: storedQuantity,
