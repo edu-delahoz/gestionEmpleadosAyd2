@@ -3,17 +3,25 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useSession, signIn } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, CheckCircle, Mail } from "lucide-react"
+import { Building2, CheckCircle, Shield } from "lucide-react"
 import { getDashboardRoute } from "@/lib/routes"
 
 const departments = ["Ventas", "Marketing", "Finanzas", "Recursos Humanos", "Tecnología", "Operaciones"]
+const roleOptions = [
+  { value: "admin", label: "Administrador" },
+  { value: "hr", label: "Recursos Humanos" },
+  { value: "manager", label: "Gerente" },
+  { value: "finance", label: "Finanzas" },
+  { value: "employee", label: "Empleado" },
+  { value: "candidate", label: "Candidato" },
+]
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -21,10 +29,13 @@ export default function RegisterPage() {
     email: "",
     department: "",
     position: "",
+    role: "employee",
+    password: "",
+    confirmPassword: "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [createdUser, setCreatedUser] = useState<{ email: string; role: string } | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
 
@@ -41,33 +52,56 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setLoading(true)
 
-    const result = await signIn("email", {
-      email: formData.email,
-      redirect: false,
-    })
-
-    if (result?.error) {
-      setError("No pudimos enviar la solicitud. Intenta nuevamente.")
-    } else {
-      setSuccess(true)
+    if (formData.password !== formData.confirmPassword) {
+      setError("Las contraseñas no coinciden")
+      return
     }
 
-    setLoading(false)
+    setLoading(true)
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          department: formData.department,
+          position: formData.position,
+          role: formData.role,
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "No pudimos crear la cuenta")
+      }
+
+      setCreatedUser({ email: data.user.email, role: data.user.role })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos crear la cuenta")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (success) {
+  if (createdUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-4">
-        <Card className="w-full max-w-md text-center">
+        <Card className="w-full max-w-md text-center space-y-4">
           <CardContent className="pt-6 space-y-4">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-bold">¡Solicitud recibida!</h2>
+            <h2 className="text-2xl font-bold">¡Cuenta creada!</h2>
             <p className="text-muted-foreground">
-              Te enviamos un enlace seguro a {formData.email}. Completa el acceso desde tu correo para activar tu cuenta.
+              {createdUser.email} fue registrada con rol <span className="font-semibold">{createdUser.role}</span>. Inicia
+              sesión con tu correo y contraseña para revisar el dashboard.
             </p>
-            <Button onClick={() => router.push("/login")}>Volver al inicio de sesión</Button>
+            <Button onClick={() => router.push("/login")}>Ir al inicio de sesión</Button>
           </CardContent>
         </Card>
       </div>
@@ -83,8 +117,8 @@ export default function RegisterPage() {
               <Building2 className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Solicitar acceso</CardTitle>
-          <CardDescription>Comparte tus datos y te enviaremos un enlace de acceso seguro.</CardDescription>
+          <CardTitle className="text-2xl font-bold">Crear cuenta de prueba</CardTitle>
+          <CardDescription>Configura el rol y la contraseña para evaluar cada escenario.</CardDescription>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
@@ -119,6 +153,22 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="role">Rol</Label>
+              <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="department">Departamento</Label>
               <Select value={formData.department} onValueChange={(value) => handleInputChange("department", value)}>
                 <SelectTrigger>
@@ -126,7 +176,7 @@ export default function RegisterPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {departments.map((department) => (
-                    <SelectItem key={department} value={department.toLowerCase()}>
+                    <SelectItem key={department} value={department}>
                       {department}
                     </SelectItem>
                   ))}
@@ -135,7 +185,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="position">Cargo / Rol</Label>
+              <Label htmlFor="position">Cargo / puesto</Label>
               <Input
                 id="position"
                 placeholder="Ej. Líder de Producto"
@@ -144,15 +194,40 @@ export default function RegisterPage() {
                 required
               />
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                  required
+                />
+              </div>
+            </div>
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full flex items-center gap-2" disabled={loading}>
-              <Mail className="h-4 w-4" />
-              {loading ? "Enviando solicitud..." : "Solicitar acceso"}
+              <Shield className="h-4 w-4" />
+              {loading ? "Creando cuenta..." : "Crear cuenta"}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
-              ¿Ya recibiste tu invitación?{" "}
+              ¿Ya tienes acceso?{" "}
               <Link href="/login" className="text-primary hover:underline">
                 Inicia sesión aquí
               </Link>

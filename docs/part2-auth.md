@@ -18,7 +18,7 @@
    - `DashboardLayout` y `Header` consumen sesiones reales (`useSession` + `signOut`).
    - Páginas de perfil leen datos del usuario autenticado.
    - Eliminé el `RoleSwitcher` y el mock de `getCurrentUser`.
-   - `/login`, `/register` y `/recover` ahora usan los proveedores de Google o credenciales (`signIn`) y muestran mensajes de estado.
+   - `/login`, `/register` y `/recover` ahora usan los proveedores de Google o credenciales (`signIn`) y muestran mensajes de estado. Desde `/register` se pueden crear cuentas nuevas eligiendo rol y contraseña para pruebas.
    - La raíz (`app/page.tsx`) redirige según la sesión (`getServerSession`).
 
 ## Variables necesarias

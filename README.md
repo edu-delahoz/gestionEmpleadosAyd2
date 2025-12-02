@@ -133,6 +133,7 @@ Después de correr `npx prisma db seed`, tendrás estas cuentas disponibles para
 | Empleado      | `employee@udea.edu.co`| `Employee123*`|
 
 También puedes usar el botón “Continuar con Google” si tienes un cliente OAuth configurado en `.env`.
+Si necesitas otro rol con credenciales propias, visita `/register` y genera una cuenta indicando el rol deseado.
 
 ---
 
