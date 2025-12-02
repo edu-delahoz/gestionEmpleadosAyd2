@@ -1,0 +1,270 @@
+// Prisma schema for Supabase (PostgreSQL) integration
+// Covers authentication (NextAuth), HR masters, inventory movements, payroll cycles and AI insights
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CANDIDATE
+  EMPLOYEE
+  MANAGER
+  HR
+  FINANCE
+  ADMIN
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
+enum MovementType {
+  ENTRY
+  EXIT
+  ADJUSTMENT
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSING
+  PROCESSED
+  PAID
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+}
+
+enum NotificationCategory {
+  PAYROLL
+  ATTENDANCE
+  REQUESTS
+  SYSTEM
+  COMMUNICATION
+  AI
+}
+
+enum InsightCategory {
+  PAYROLL
+  HEADCOUNT
+  PERFORMANCE
+  RETENTION
+  COMPLIANCE
+}
+
+enum InsightSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum InsightStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id             String            @id @default(cuid())
+  name           String?
+  email          String?           @unique
+  emailVerified  DateTime?
+  image          String?
+  role           Role              @default(CANDIDATE)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  profile        Profile?
+  masters        MasterRecord[]    @relation("MasterCreatedBy")
+  inventoryMoves InventoryMovement[] @relation("MovementPerformedBy")
+  payrollCycles  PayrollCycle[]    @relation("PayrollProcessedBy")
+  notifications  Notification[]
+  insights       AIInsight[]       @relation("InsightAuthor")
+
+  @@map("users")
+}
+
+model Profile {
+  id            String            @id @default(cuid())
+  userId        String            @unique
+  user          User              @relation(fields: [userId], references: [id])
+  employeeCode  String?           @unique
+  position      String?
+  departmentId  String?
+  department    Department?       @relation(fields: [departmentId], references: [id])
+  managerId     String?
+  manager       Profile?          @relation("ProfileManager", fields: [managerId], references: [id])
+  reports       Profile[]         @relation("ProfileManager")
+  phone         String?
+  location      String?
+  startDate     DateTime?
+  status        EmploymentStatus  @default(ACTIVE)
+  salary        Decimal?          @db.Decimal(12, 2)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  payrollEntries PayrollEntry[]
+}
+
+model Department {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  leadId      String?
+  lead        User?         @relation(fields: [leadId], references: [id])
+  profiles    Profile[]
+  masters     MasterRecord[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model MasterRecord {
+  id             String            @id @default(cuid())
+  slug           String            @unique
+  name           String
+  description    String?
+  departmentId   String?
+  department     Department?       @relation(fields: [departmentId], references: [id])
+  initialBalance Decimal           @db.Decimal(12, 2)
+  currentBalance Decimal           @db.Decimal(12, 2)
+  status         String            @default("active")
+  createdById    String
+  createdBy      User              @relation("MasterCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  movements      InventoryMovement[]
+  insights       AIInsight[]       @relation("InsightMaster")
+}
+
+model InventoryMovement {
+  id             String        @id @default(cuid())
+  masterId       String
+  master         MasterRecord  @relation(fields: [masterId], references: [id])
+  performedById  String
+  performedBy    User          @relation("MovementPerformedBy", fields: [performedById], references: [id])
+  movementType   MovementType
+  quantity       Decimal       @db.Decimal(12, 2)
+  notes          String?
+  referencePeriod String?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([masterId])
+  @@index([performedById])
+}
+
+model PayrollCycle {
+  id              String         @id @default(cuid())
+  period          String
+  status          PayrollStatus  @default(DRAFT)
+  totalGross      Decimal        @db.Decimal(14, 2) @default(0)
+  totalDeductions Decimal        @db.Decimal(14, 2) @default(0)
+  totalNet        Decimal        @db.Decimal(14, 2) @default(0)
+  processedById   String?
+  processedBy     User?          @relation("PayrollProcessedBy", fields: [processedById], references: [id])
+  processedAt     DateTime?
+  entries         PayrollEntry[]
+  insights        AIInsight[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([period])
+}
+
+model PayrollEntry {
+  id          String        @id @default(cuid())
+  cycleId     String
+  cycle       PayrollCycle  @relation(fields: [cycleId], references: [id])
+  profileId   String
+  profile     Profile       @relation(fields: [profileId], references: [id])
+  baseSalary  Decimal       @db.Decimal(12, 2)
+  overtime    Decimal       @db.Decimal(12, 2) @default(0)
+  bonuses     Decimal       @db.Decimal(12, 2) @default(0)
+  deductions  Decimal       @db.Decimal(12, 2) @default(0)
+  netPay      Decimal       @db.Decimal(12, 2)
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  @@index([cycleId])
+  @@index([profileId])
+}
+
+model Notification {
+  id              String              @id @default(cuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id])
+  title           String
+  message         String
+  type            NotificationType    @default(INFO)
+  category        NotificationCategory @default(SYSTEM)
+  data            Json?
+  actionRequired  Boolean             @default(false)
+  read            Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  readAt          DateTime?
+}
+
+model AIInsight {
+  id         String          @id @default(cuid())
+  category   InsightCategory
+  severity   InsightSeverity @default(MEDIUM)
+  status     InsightStatus   @default(OPEN)
+  summary    String
+  details    String?
+  payload    Json?
+  authorId   String?
+  author     User?           @relation("InsightAuthor", fields: [authorId], references: [id])
+  cycleId    String?
+  cycle      PayrollCycle?   @relation(fields: [cycleId], references: [id])
+  masterId   String?
+  master     MasterRecord?   @relation("InsightMaster", fields: [masterId], references: [id])
+  createdAt  DateTime        @default(now())
+  resolvedAt DateTime?
+}
+
+/// NextAuth models (Prisma Adapter)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  refresh_token_expires_in Int?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
