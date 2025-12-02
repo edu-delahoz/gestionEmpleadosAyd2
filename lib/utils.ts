@@ -34,11 +34,22 @@ export function calculateHours(start: string, end: string): number {
   return Math.round((diff / (1000 * 60 * 60)) * 100) / 100
 }
 
-export function getInitials(name: string): string {
-  return name
+export function getInitials(name: string, fallback?: string): string {
+  const initials = name
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2)
+
+  if (initials) {
+    return initials
+  }
+
+  if (fallback) {
+    return fallback.slice(0, 2).toUpperCase()
+  }
+
+  return ""
 }

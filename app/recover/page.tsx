@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -23,13 +21,6 @@ export default function RecoverPage() {
     setError("")
 
     try {
-      // Mock password recovery
-      if (!email) {
-        setError("El correo electrónico es requerido")
-        return
-      }
-
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setSuccess(true)
     } catch (err) {
@@ -37,31 +28,6 @@ export default function RecoverPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-4">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="pt-6">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">¡Correo Enviado!</h2>
-            <p className="text-muted-foreground mb-6">
-              Hemos enviado las instrucciones para restablecer tu contraseña a{" "}
-              <span className="font-medium">{email}</span>
-            </p>
-            <div className="space-y-3">
-              <Button asChild className="w-full">
-                <Link href="/login">Volver al Login</Link>
-              </Button>
-              <Button variant="outline" onClick={() => setSuccess(false)} className="w-full">
-                Enviar a otro correo
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (
@@ -104,7 +70,7 @@ export default function RecoverPage() {
 
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Enviando..." : "Enviar Instrucciones"}
+              {loading ? "Enviando..." : "Enviar instrucciones"}
             </Button>
 
             <Button variant="ghost" asChild className="w-full">

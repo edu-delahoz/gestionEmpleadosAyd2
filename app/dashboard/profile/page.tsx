@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,16 +13,16 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Mail, Phone, MapPin, Calendar, Briefcase, Save, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { getCurrentUser } from "@/lib/auth"
 import { getInitials } from "@/lib/utils"
 
 export default function ProfilePage() {
   const { toast } = useToast()
-  const currentUser = getCurrentUser()
+  const { data: session } = useSession()
+  const currentUser = session?.user
 
   const [profile, setProfile] = useState({
-    name: currentUser?.name || "",
-    email: currentUser?.email || "",
+    name: currentUser?.name ?? "",
+    email: currentUser?.email ?? "",
     phone: "+57 300 123 4567",
     address: "Calle 123 #45-67, Bogotá, Colombia",
     birthDate: "1990-05-15",
