@@ -127,7 +127,7 @@ export async function updateResourceBalance(
   })
 
   if (!master) {
-    throw new Error("Maestro no encontrado")
+    throw new Error("Recurso no encontrado")
   }
 
   const currentBalance = new Prisma.Decimal(master.currentBalance)
