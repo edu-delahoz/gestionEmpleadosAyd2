@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Users, UserPlus, FileText, TrendingUp, AlertCircle, Calendar } from "lucide-react"
+import { Users, UserPlus, FileText, TrendingUp, AlertCircle, Calendar, RefreshCcw } from "lucide-react"
 import Link from "next/link"
 
 export default function HRDashboard() {
