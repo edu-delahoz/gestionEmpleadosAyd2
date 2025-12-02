@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
+  RefreshCcw,
 } from "lucide-react"
 import type { Role } from "@/types"
 
@@ -51,6 +52,7 @@ const menuItems = {
     { icon: Home, label: "Dashboard", href: "/dashboard/hr" },
     { icon: Users, label: "Empleados", href: "/dashboard/hr/employees" },
     { icon: Package, label: "Recursos", href: "/dashboard/hr/resources" },
+    { icon: RefreshCcw, label: "Movimientos", href: "/dashboard/hr/transactions" },
     { icon: UserCheck, label: "Reclutamiento", href: "/dashboard/hr/recruitment" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/hr/requests" },
     { icon: Clock, label: "Asistencia", href: "/dashboard/hr/attendance" },
