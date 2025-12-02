@@ -41,14 +41,9 @@ export default function HRDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard de Recursos Humanos</h1>
-            <p className="text-muted-foreground">Gestiona el talento y las operaciones de RH</p>
-          </div>
-          <Button asChild>
-            <Link href="/dashboard/hr/transactions">Ir a Movimientos</Link>
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard de Recursos Humanos</h1>
+          <p className="text-muted-foreground">Gestiona el talento y las operaciones de RH</p>
         </div>
 
         {/* HR Stats */}
@@ -213,12 +208,6 @@ export default function HRDashboard() {
                 <Link href="/dashboard/hr/recruitment">
                   <Calendar className="h-5 w-5" />
                   <span className="text-sm">Programar Entrevista</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>
-                <Link href="/dashboard/hr/transactions">
-                  <RefreshCcw className="h-5 w-5" />
-                  <span className="text-sm">Movimientos</span>
                 </Link>
               </Button>
             </div>
