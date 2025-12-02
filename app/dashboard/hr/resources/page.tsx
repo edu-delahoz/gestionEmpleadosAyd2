@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,7 @@ export default function StrategicResourcesPage() {
   const { toast } = useToast()
 
   const canManageResources = session?.user?.role === "hr" || session?.user?.role === "admin"
+  const showLimitedAccess = !canManageResources
 
   const fetchResources = useCallback(async () => {
     setIsLoading(true)
@@ -419,6 +421,15 @@ export default function StrategicResourcesPage() {
             </Dialog>
           )}
         </div>
+
+        {showLimitedAccess && (
+          <Alert>
+            <AlertTitle>Solo lectura</AlertTitle>
+            <AlertDescription>
+              Tu rol actual solo permite consultar recursos. Las acciones de creación están reservadas para HR/Admin.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card>

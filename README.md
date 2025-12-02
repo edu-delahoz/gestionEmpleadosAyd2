@@ -153,3 +153,14 @@ Proyecto académico para la materia **Análisis y Diseño de Sistemas 2**.
 ## Notas Adicionales
 
 Este proyecto es una simulación académica. Para consultas contactame a través de GitHub (edu-delahoz).
+
+---
+
+## API de Recursos Estratégicos y Movimientos
+
+- **`POST /api/resources`**: crea un recurso estratégico (solo roles `hr` y `admin`). Requiere campos `name` e `initialBalance`. Opcionales: `description`, `departmentId`, `status`.
+- **`GET /api/resources`**: devuelve el catálogo completo con saldos actual/ inicial, departamento y creador.
+- **`POST /api/movements`**: registra entradas, salidas o ajustes para un recurso. Cualquier rol autenticado (`employee`, `manager`, `hr`, `admin`) puede enviar `resourceId`, `movementType` (`ENTRY`, `EXIT`, `ADJUSTMENT`), `quantity`, `notes?`, `referencePeriod?`.
+- **`GET /api/movements?resourceId=...`**: lista el historial de movimientos del recurso indicado.
+
+> Recomendación: primero crea recursos desde `/dashboard/hr/resources`, luego usa `/dashboard/hr/transactions` para monitorear y registrar movimientos. Las acciones sensibles se ocultan automáticamente si tu rol no tiene permisos.

@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn, formatCurrency } from "@/lib/utils"
 
 const MOVEMENTS_PER_PAGE = 8
@@ -115,6 +116,7 @@ export default function TransactionsPage() {
     const allowed = new Set(["admin", "hr", "manager", "employee"])
     return allowed.has(session?.user?.role ?? "")
   }, [session?.user?.role])
+  const showLimitedAccess = !canCreateMovements
 
   const selectedResource = useMemo(
     () => resources.find((resource) => resource.id === selectedResourceId) ?? null,
@@ -476,6 +478,15 @@ export default function TransactionsPage() {
 
     return (
       <>
+        {showLimitedAccess && (
+          <Alert>
+            <AlertTitle>Acceso limitado</AlertTitle>
+            <AlertDescription>
+              Puedes consultar la actividad histórica pero las nuevas transacciones están restringidas según tu rol.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader>
