@@ -55,10 +55,6 @@ const menuItems = {
     { icon: RefreshCcw, label: "Movimientos", href: "/dashboard/hr/transactions" },
     { icon: UserCheck, label: "Reclutamiento", href: "/dashboard/hr/recruitment" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/hr/requests" },
-    { icon: Clock, label: "Asistencia", href: "/dashboard/hr/attendance" },
-    { icon: BarChart3, label: "Reportes", href: "/dashboard/hr/reports" },
-    { icon: Bell, label: "Notificaciones", href: "/dashboard/hr/notifications" },
-    { icon: Settings, label: "Configuración", href: "/dashboard/hr/settings" },
   ],
   finance: [
     { icon: Home, label: "Dashboard", href: "/dashboard/finance" },
@@ -71,12 +67,8 @@ const menuItems = {
   admin: [
     { icon: Home, label: "Dashboard", href: "/dashboard/admin" },
     { icon: Users, label: "Empleados", href: "/dashboard/admin/employees" },
-    { icon: Clock, label: "Asistencia", href: "/dashboard/admin/attendance" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/admin/requests" },
     { icon: DollarSign, label: "Nómina", href: "/dashboard/admin/payroll" },
-    { icon: BarChart3, label: "Reportes", href: "/dashboard/admin/reports" },
-    { icon: Bell, label: "Notificaciones", href: "/dashboard/admin/notifications" },
-    { icon: Settings, label: "Configuración", href: "/dashboard/admin/settings" },
   ],
 }
 

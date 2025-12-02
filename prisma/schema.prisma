@@ -78,6 +78,34 @@ enum InsightStatus {
   DISMISSED
 }
 
+enum JobOpeningStatus {
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EmployeeRequestType {
+  VACATION
+  PERMISSION
+  REMOTE
+  LEAVE
+  TRAINING
+  OTHER
+}
+
+enum EmployeeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id             String            @id @default(cuid())
   name           String?
@@ -120,6 +148,8 @@ model Profile {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   payrollEntries PayrollEntry[]
+  requests      EmployeeRequest[]
+  surveys       SatisfactionSurvey[]
 }
 
 model Department {
@@ -130,6 +160,8 @@ model Department {
   lead        User?         @relation("DepartmentLead", fields: [leadId], references: [id])
   profiles    Profile[]
   masters     MasterRecord[]
+  jobOpenings JobOpening[]
+  requests    EmployeeRequest[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
@@ -203,6 +235,47 @@ model PayrollEntry {
 
   @@index([cycleId])
   @@index([profileId])
+}
+
+model JobOpening {
+  id             String            @id @default(cuid())
+  title          String
+  departmentId   String?
+  department     Department?       @relation(fields: [departmentId], references: [id])
+  status         JobOpeningStatus  @default(OPEN)
+  priority       JobPriority       @default(MEDIUM)
+  location       String?
+  employmentType String?
+  openings       Int               @default(1)
+  filled         Int               @default(0)
+  applications   Int               @default(0)
+  postedAt       DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model EmployeeRequest {
+  id           String                @id @default(cuid())
+  profileId    String?
+  profile      Profile?              @relation(fields: [profileId], references: [id])
+  departmentId String?
+  department   Department?           @relation(fields: [departmentId], references: [id])
+  type         EmployeeRequestType
+  status       EmployeeRequestStatus @default(PENDING)
+  reason       String?
+  startDate    DateTime?
+  endDate      DateTime?
+  days         Int?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+}
+
+model SatisfactionSurvey {
+  id        String   @id @default(cuid())
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [id])
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
 }
 
 model Notification {

@@ -1,4 +1,14 @@
-import { PrismaClient, Role, EmploymentStatus, MovementType, PayrollStatus } from "@prisma/client"
+import {
+  PrismaClient,
+  Role,
+  EmploymentStatus,
+  MovementType,
+  PayrollStatus,
+  JobOpeningStatus,
+  JobPriority,
+  EmployeeRequestType,
+  EmployeeRequestStatus,
+} from "@prisma/client"
 import bcrypt from "bcrypt"
 
 
@@ -75,9 +85,9 @@ async function main() {
   })
 
   // Profiles linked to seeded users
-  const [hrDepartment] = departments
+  const [hrDepartment, financeDepartment, techDepartment] = departments
 
-  await prisma.profile.upsert({
+  const adminProfile = await prisma.profile.upsert({
     where: { userId: adminUser.id },
     update: {},
     create: {
@@ -89,7 +99,7 @@ async function main() {
     },
   })
 
-  await prisma.profile.upsert({
+  const hrProfile = await prisma.profile.upsert({
     where: { userId: hrUser.id },
     update: {},
     create: {
@@ -101,7 +111,7 @@ async function main() {
     },
   })
 
-  await prisma.profile.upsert({
+  const managerProfile = await prisma.profile.upsert({
     where: { userId: managerUser.id },
     update: {},
     create: {
@@ -113,7 +123,7 @@ async function main() {
     },
   })
 
-  await prisma.profile.upsert({
+  const employeeProfile = await prisma.profile.upsert({
     where: { userId: employeeUser.id },
     update: {},
     create: {
@@ -188,6 +198,132 @@ async function main() {
       processedById: adminUser.id,
     },
   })
+
+  const jobOpeningsData = [
+    {
+      id: "opening-fullstack",
+      title: "Desarrollador Full Stack",
+      departmentId: techDepartment.id,
+      status: JobOpeningStatus.OPEN,
+      priority: JobPriority.HIGH,
+      location: "Medellín",
+      employmentType: "Tiempo completo",
+      openings: 2,
+      filled: 1,
+      applications: 18,
+    },
+    {
+      id: "opening-analista-datos",
+      title: "Analista de Datos",
+      departmentId: techDepartment.id,
+      status: JobOpeningStatus.OPEN,
+      priority: JobPriority.MEDIUM,
+      location: "Remoto",
+      employmentType: "Tiempo completo",
+      openings: 1,
+      filled: 0,
+      applications: 12,
+    },
+    {
+      id: "opening-finanzas-jr",
+      title: "Analista Financiero Junior",
+      departmentId: financeDepartment.id,
+      status: JobOpeningStatus.PAUSED,
+      priority: JobPriority.LOW,
+      location: "Bogotá",
+      employmentType: "Híbrido",
+      openings: 1,
+      filled: 0,
+      applications: 7,
+    },
+  ] as const
+
+  for (const opening of jobOpeningsData) {
+    const { id, ...rest } = opening
+    await prisma.jobOpening.upsert({
+      where: { id },
+      update: rest,
+      create: { id, ...rest },
+    })
+  }
+
+  const employeeRequestsData = [
+    {
+      id: "request-vacaciones-emp",
+      profileId: employeeProfile.id,
+      departmentId: hrDepartment.id,
+      type: EmployeeRequestType.VACATION,
+      status: EmployeeRequestStatus.PENDING,
+      reason: "Vacaciones programadas",
+      startDate: new Date("2024-02-01"),
+      endDate: new Date("2024-02-05"),
+      days: 5,
+    },
+    {
+      id: "request-remote-manager",
+      profileId: managerProfile.id,
+      departmentId: hrDepartment.id,
+      type: EmployeeRequestType.REMOTE,
+      status: EmployeeRequestStatus.APPROVED,
+      reason: "Trabajo remoto durante visita comercial",
+      startDate: new Date("2024-01-15"),
+      endDate: new Date("2024-01-19"),
+      days: 5,
+    },
+    {
+      id: "request-capacitacion-hr",
+      profileId: hrProfile.id,
+      departmentId: hrDepartment.id,
+      type: EmployeeRequestType.TRAINING,
+      status: EmployeeRequestStatus.PENDING,
+      reason: "Certificación en gestión del cambio",
+      startDate: new Date("2024-02-10"),
+      endDate: new Date("2024-02-12"),
+      days: 3,
+    },
+  ] as const
+
+  for (const request of employeeRequestsData) {
+    const { id, ...rest } = request
+    await prisma.employeeRequest.upsert({
+      where: { id },
+      update: rest,
+      create: { id, ...rest },
+    })
+  }
+
+  const satisfactionSurveys = [
+    {
+      id: "survey-admin",
+      profileId: adminProfile.id,
+      score: 5,
+      comment: "Excelente clima laboral",
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
+    },
+    {
+      id: "survey-hr",
+      profileId: hrProfile.id,
+      score: 4,
+      comment: "Carga alta pero manejable",
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15),
+    },
+    {
+      id: "survey-employee",
+      profileId: employeeProfile.id,
+      score: 3,
+      comment: "Buscando crecimiento profesional",
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30),
+    },
+  ] as const
+
+  for (const survey of satisfactionSurveys) {
+    const { id, ...rest } = survey
+    await prisma.satisfactionSurvey.upsert({
+      where: { id },
+      update: rest,
+      create: { id, ...rest },
+    })
+  }
 
   console.log("Seed completed")
 }

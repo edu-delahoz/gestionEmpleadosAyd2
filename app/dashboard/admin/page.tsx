@@ -1,216 +1,275 @@
 "use client"
 
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Users, DollarSign, AlertTriangle, Server, Shield, BarChart3, Settings } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
+import { Briefcase, ClipboardList, FileText, Loader2, RefreshCcw, TrendingUp, UserPlus, Users } from "lucide-react"
 
-export default function AdminDashboard() {
-  const systemStats = {
-    totalUsers: 45,
-    activeUsers: 42,
-    systemUptime: 99.8,
-    monthlyPayroll: 185000000,
-    pendingApprovals: 8,
-    securityAlerts: 2,
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { NewEmployeeDialog } from "@/components/dashboard/new-employee-dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import { useWorkforceSummary } from "@/hooks/use-workforce-summary"
+
+const dateFormatter = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" })
+
+const formatDate = (value: string | null) => {
+  if (!value) return "Sin fecha"
+  try {
+    return dateFormatter.format(new Date(value))
+  } catch (error) {
+    return value
   }
+}
 
-  const systemHealth = [
-    { component: "Base de Datos", status: "healthy", uptime: 99.9 },
-    { component: "Servidor Web", status: "healthy", uptime: 99.8 },
-    { component: "Sistema de Archivos", status: "warning", uptime: 98.5 },
-    { component: "Servicios de Email", status: "healthy", uptime: 99.7 },
+const priorityVariant: Record<string, "default" | "secondary" | "destructive"> = {
+  high: "destructive",
+  medium: "default",
+  low: "secondary",
+}
+
+export default function AdminDashboardPage() {
+  const { data, loading, error, refresh } = useWorkforceSummary("admin")
+
+  const stats = [
+    {
+      key: "employees",
+      label: "Colaboradores activos",
+      icon: Users,
+      value: data?.headcount.active ?? 0,
+      subtext: `+${data?.headcount.newThisMonth ?? 0} este mes`,
+    },
+    {
+      key: "openings",
+      label: "Posiciones abiertas",
+      icon: Briefcase,
+      value: data?.openPositions.totalOpenings ?? 0,
+      subtext: `${data?.openPositions.totalRoles ?? 0} roles activos`,
+    },
+    {
+      key: "requests",
+      label: "Solicitudes pendientes",
+      icon: FileText,
+      value: data?.requests.pending ?? 0,
+      subtext: `${data?.requests.total ?? 0} totales`,
+    },
+    {
+      key: "satisfaction",
+      label: "Satisfacción",
+      icon: TrendingUp,
+      value: data ? `${data.satisfaction.average.toFixed(1)}/5` : "--",
+      subtext: `${data?.satisfaction.responses ?? 0} respuestas`,
+      progress: (data?.satisfaction.average ?? 0) * 20,
+    },
   ]
 
-  const recentActivities = [
-    { id: 1, user: "Carlos Rodríguez", action: "Procesó nómina de enero", time: "2 horas" },
-    { id: 2, user: "María López", action: "Aprobó 5 solicitudes de vacaciones", time: "4 horas" },
-    { id: 3, user: "Ana García", action: "Creó nuevo usuario", time: "6 horas" },
-  ]
-
-  const criticalAlerts = [
-    { id: 1, type: "security", message: "Intento de acceso no autorizado detectado", severity: "high" },
-    { id: 2, type: "system", message: "Espacio en disco bajo en servidor principal", severity: "medium" },
-  ]
+  const newEmployeeTrigger = (
+    <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" disabled={!data || loading}>
+      <UserPlus className="h-5 w-5" />
+      <span className="text-sm">Nuevo empleado</span>
+    </Button>
+  )
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard de Administrador</h1>
-          <p className="text-muted-foreground">Control total del sistema y operaciones</p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Panel administrativo</h1>
+            <p className="text-muted-foreground">Supervisa el estado de la organización y toma acciones inmediatas</p>
+          </div>
+          <Button variant="outline" onClick={refresh} disabled={loading} className="w-full lg:w-auto">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+            <span className="ml-2">Actualizar</span>
+          </Button>
         </div>
 
-        {/* System Stats */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>Ocurrió un error al cargar la información</AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>{error}</span>
+              <Button size="sm" variant="outline" onClick={refresh}>
+                Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat) => (
+            <Card key={stat.key}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
+                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {loading && !data ? <Loader2 className="h-5 w-5 animate-spin" /> : stat.value}
+                </div>
+                <p className="text-xs text-muted-foreground">{stat.subtext}</p>
+                {stat.progress !== undefined && <Progress value={stat.progress} className="mt-3" />}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Usuarios Totales</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle>Contrataciones recientes</CardTitle>
+              <CardDescription>Integraciones completadas en el trimestre</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{systemStats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">{systemStats.activeUsers} activos</p>
+            <CardContent className="space-y-4">
+              {!data && loading && <p className="text-sm text-muted-foreground">Cargando información...</p>}
+              {data && data.recentHires.length === 0 && (
+                <p className="text-sm text-muted-foreground">No se registran nuevas contrataciones en el periodo.</p>
+              )}
+              {data?.recentHires.map((hire) => (
+                <div key={hire.id} className="flex items-center justify-between border-b last:border-b-0 pb-3 last:pb-0">
+                  <div>
+                    <p className="font-medium">{hire.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {hire.position ?? "Sin posición"} · {hire.department ?? "Sin departamento"}
+                    </p>
+                  </div>
+                  <Badge variant="outline">{formatDate(hire.startDate)}</Badge>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Nómina Mensual</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle>Resumen por departamento</CardTitle>
+              <CardDescription>Headcount por unidad organizacional</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(systemStats.monthlyPayroll)}</div>
-              <p className="text-xs text-muted-foreground">Enero 2024</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tiempo de Actividad</CardTitle>
-              <Server className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{systemStats.systemUptime}%</div>
-              <Progress value={systemStats.systemUptime} className="mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Alertas de Seguridad</CardTitle>
-              <Shield className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{systemStats.securityAlerts}</div>
-              <p className="text-xs text-muted-foreground">Requieren atención</p>
+            <CardContent className="space-y-4">
+              {!data && loading && <p className="text-sm text-muted-foreground">Calculando headcount...</p>}
+              {data && data.departments.length === 0 && (
+                <p className="text-sm text-muted-foreground">Aún no hay departamentos con personal.</p>
+              )}
+              {data?.departments.map((department) => (
+                <div key={department.name} className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{department.name}</p>
+                    <p className="text-sm text-muted-foreground">{department.employees} empleados</p>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* System Health */}
           <Card>
             <CardHeader>
-              <CardTitle>Estado del Sistema</CardTitle>
-              <CardDescription>Monitoreo de componentes críticos</CardDescription>
+              <CardTitle>Vacantes activas</CardTitle>
+              <CardDescription>Seguimiento de roles estratégicos</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {systemHealth.map((component, index) => (
-                  <div key={index} className="flex items-center justify-between">
+            <CardContent className="space-y-4">
+              {!data && loading && <p className="text-sm text-muted-foreground">Consultando vacantes...</p>}
+              {data && data.openPositions.positions.length === 0 && (
+                <p className="text-sm text-muted-foreground">No hay posiciones registradas.</p>
+              )}
+              {data?.openPositions.positions.map((position) => (
+                <div key={position.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{component.component}</p>
-                      <p className="text-sm text-muted-foreground">Uptime: {component.uptime}%</p>
+                      <p className="font-medium">{position.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {position.department ?? "Sin departamento"} · {position.location ?? "N/A"}
+                      </p>
                     </div>
-                    <Badge
-                      variant={
-                        component.status === "healthy"
-                          ? "default"
-                          : component.status === "warning"
-                            ? "secondary"
-                            : "destructive"
-                      }
-                    >
-                      {component.status === "healthy"
-                        ? "Saludable"
-                        : component.status === "warning"
-                          ? "Advertencia"
-                          : "Error"}
-                    </Badge>
+                    <Badge variant={priorityVariant[position.priority] ?? "secondary"}>{position.priority}</Badge>
                   </div>
-                ))}
-              </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>
+                      {position.openings - position.filled} cupos disponibles ({position.openings} totales)
+                    </span>
+                    <span>{position.applications} postulaciones</span>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
-          {/* Recent Activities */}
           <Card>
-            <CardHeader>
-              <CardTitle>Actividad Reciente</CardTitle>
-              <CardDescription>Acciones importantes del sistema</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.user}</p>
-                      <p className="text-sm text-muted-foreground">{activity.action}</p>
-                      <p className="text-xs text-muted-foreground">Hace {activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+            <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>Solicitudes críticas</CardTitle>
+                <CardDescription>Prioriza aprobaciones pendientes</CardDescription>
               </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/admin/requests">Ver solicitudes</Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!data && loading && <p className="text-sm text-muted-foreground">Cargando solicitudes...</p>}
+              {data && data.requests.list.length === 0 && (
+                <p className="text-sm text-muted-foreground">No hay solicitudes pendientes.</p>
+              )}
+              {data?.requests.list.map((request) => (
+                <div key={request.id} className="border rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{request.employee}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {request.type} · {request.department ?? "Sin departamento"}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">Pendiente</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {formatDate(request.startDate)} - {formatDate(request.endDate)}
+                  </p>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
 
-        {/* Critical Alerts */}
         <Card>
           <CardHeader>
-            <CardTitle>Alertas Críticas</CardTitle>
-            <CardDescription>Problemas que requieren atención inmediata</CardDescription>
+            <CardTitle>Equipo activo</CardTitle>
+            <CardDescription>Colaboradores disponibles para reasignaciones</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {criticalAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <AlertTriangle
-                      className={`h-4 w-4 ${alert.severity === "high" ? "text-red-600" : "text-orange-600"}`}
-                    />
-                    <div>
-                      <p className="font-medium">{alert.message}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Tipo: {alert.type} | Severidad: {alert.severity}
-                      </p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant={alert.severity === "high" ? "destructive" : "outline"}>
-                    Resolver
-                  </Button>
+          <CardContent className="space-y-4">
+            {!data && loading && <p className="text-sm text-muted-foreground">Obteniendo empleados...</p>}
+            {data && data.employees.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aún no se registran empleados en la base de datos.</p>
+            )}
+            {data?.employees.map((employee) => (
+              <div key={employee.id} className="flex flex-col gap-1 border rounded-lg p-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-medium">{employee.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {employee.position ?? "Sin posición"} · {employee.department ?? "Sin departamento"}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <p className="text-xs text-muted-foreground">Inicio: {formatDate(employee.startDate)}</p>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
-        {/* Admin Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Acciones de Administrador</CardTitle>
-            <CardDescription>Herramientas de gestión del sistema</CardDescription>
+            <CardTitle>Acciones rápidas</CardTitle>
+            <CardDescription>Operaciones esenciales del administrador</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <NewEmployeeDialog
+                departments={data?.departmentsCatalog ?? []}
+                onCreated={refresh}
+                trigger={newEmployeeTrigger}
+              />
               <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>
-                <Link href="/dashboard/admin/employees">
-                  <Users className="h-5 w-5" />
-                  <span className="text-sm">Gestionar Usuarios</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>
-                <Link href="/dashboard/admin/settings">
-                  <Shield className="h-5 w-5" />
-                  <span className="text-sm">Seguridad</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>
-                <Link href="/dashboard/admin/reports">
-                  <BarChart3 className="h-5 w-5" />
-                  <span className="text-sm">Reportes</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>
-                <Link href="/dashboard/admin/settings">
-                  <Settings className="h-5 w-5" />
-                  <span className="text-sm">Configuración</span>
+                <Link href="/dashboard/admin/requests">
+                  <ClipboardList className="h-5 w-5" />
+                  <span className="text-sm">Revisar solicitudes</span>
                 </Link>
               </Button>
             </div>
