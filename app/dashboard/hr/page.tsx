@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Users, UserPlus, FileText, TrendingUp, AlertCircle, Calendar } from "lucide-react"
+import { Users, UserPlus, FileText, TrendingUp, AlertCircle, Calendar, RefreshCcw } from "lucide-react"
 import Link from "next/link"
 
 export default function HRDashboard() {
@@ -208,6 +208,12 @@ export default function HRDashboard() {
                 <Link href="/dashboard/hr/recruitment">
                   <Calendar className="h-5 w-5" />
                   <span className="text-sm">Programar Entrevista</span>
+                </Link>
+              </Button>
+              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>
+                <Link href="/transactions">
+                  <RefreshCcw className="h-5 w-5" />
+                  <span className="text-sm">Movimientos</span>
                 </Link>
               </Button>
             </div>
