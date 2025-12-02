@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { RoleSwitcher } from "@/components/auth/role-switcher"
 import { Users, DollarSign, AlertTriangle, Server, Shield, BarChart3, Settings } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import Link from "next/link"
@@ -41,12 +40,9 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard de Administrador</h1>
-            <p className="text-muted-foreground">Control total del sistema y operaciones</p>
-          </div>
-          <RoleSwitcher />
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard de Administrador</h1>
+          <p className="text-muted-foreground">Control total del sistema y operaciones</p>
         </div>
 
         {/* System Stats */}

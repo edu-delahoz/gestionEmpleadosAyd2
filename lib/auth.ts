@@ -1,49 +1,75 @@
-import type { User, Role } from "@/types"
+import { PrismaAdapter } from "@auth/prisma-adapter"
+import type { NextAuthOptions } from "next-auth"
+import type { JWT } from "next-auth/jwt"
+import GoogleProvider from "next-auth/providers/google"
+import CredentialsProvider from "next-auth/providers/credentials"
+import { Role as PrismaRole } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+import type { Role } from "@/types"
+import bcrypt from "bcrypt"
 
-// Mock current user - in real app this would come from session/JWT
-export const getCurrentUser = (): User | null => {
-  if (typeof window === "undefined") return null
-
-  const stored = localStorage.getItem("currentUser")
-  if (!stored) return null
-
-  try {
-    return JSON.parse(stored)
-  } catch {
-    return null
-  }
+const normalizeRole = (role?: PrismaRole): Role => {
+  const fallback: Role = "candidate"
+  if (!role) return fallback
+  return role.toLowerCase() as Role
 }
 
-export const setCurrentUser = (user: User | null) => {
-  if (typeof window === "undefined") return
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  session: {
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: "/login",
+  },
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    }),
+    CredentialsProvider({
+      name: "Credenciales",
+      credentials: {
+        email: { label: "Correo", type: "email" },
+        password: { label: "Contraseña", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials.password) return null
 
-  if (user) {
-    localStorage.setItem("currentUser", JSON.stringify(user))
-  } else {
-    localStorage.removeItem("currentUser")
-  }
-}
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        })
 
-export const hasRole = (user: User | null, roles: Role[]): boolean => {
-  if (!user) return false
-  return roles.includes(user.role)
-}
+        if (!user || !user.passwordHash) {
+          return null
+        }
 
-export const canAccess = (user: User | null, requiredRoles: Role[]): boolean => {
-  return hasRole(user, requiredRoles)
-}
+        const isValid = await bcrypt.compare(credentials.password, user.passwordHash)
+        if (!isValid) {
+          return null
+        }
 
-// Role hierarchy for permissions
-export const roleHierarchy: Record<Role, number> = {
-  candidate: 0,
-  employee: 1,
-  manager: 2,
-  hr: 3,
-  finance: 3,
-  admin: 4,
-}
-
-export const hasMinimumRole = (user: User | null, minRole: Role): boolean => {
-  if (!user) return false
-  return roleHierarchy[user.role] >= roleHierarchy[minRole]
+        return user
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.role = normalizeRole(user.role as PrismaRole)
+        token.picture = user.image
+      }
+      return token
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = (token.sub as string) || session.user.id
+        session.user.role = (token.role as Role) ?? session.user.role ?? "candidate"
+        session.user.image = (token.picture as string) ?? session.user.image
+      }
+      return session
+    },
+  },
+  secret: process.env.NEXTAUTH_SECRET,
 }

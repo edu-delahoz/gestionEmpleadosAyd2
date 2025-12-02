@@ -121,6 +121,20 @@ gestionEmpleadosAyd2/
    ```
 4. Accede a la aplicación en `http://localhost:3000`
 
+## Usuarios de prueba
+
+Después de correr `npx prisma db seed`, tendrás estas cuentas disponibles para iniciar sesión con correo/contraseña:
+
+| Rol           | Correo                | Contraseña    |
+|---------------|-----------------------|---------------|
+| Administrador | `admin@udea.edu.co`   | `Admin123*`   |
+| Recursos Humanos | `rrhh@udea.edu.co` | `Rh123*`      |
+| Gerente       | `manager@udea.edu.co` | `Manager123*` |
+| Empleado      | `employee@udea.edu.co`| `Employee123*`|
+
+También puedes usar el botón “Continuar con Google” si tienes un cliente OAuth configurado en `.env`.
+Si necesitas otro rol con credenciales propias, visita `/register` y genera una cuenta indicando el rol deseado.
+
 ---
 
 ## Créditos

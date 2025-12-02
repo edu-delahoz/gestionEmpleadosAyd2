@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
+import bcrypt from "bcrypt"
+import { Role, EmploymentStatus } from "@prisma/client"
+import { prisma } from "@/lib/prisma"
+
+const allowedRoles = ["candidate", "employee", "manager", "hr", "finance", "admin"] as const
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, department, position } = await request.json()
+    const { name, email, password, department, position, role } = await request.json()
 
-    // Basic validation
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Todos los campos son requeridos" }, { status: 400 })
     }
@@ -13,25 +17,65 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 })
     }
 
-    // In a real app, you'd:
-    // 1. Check if email already exists
-    // 2. Hash the password
-    // 3. Save to database
-    // 4. Send verification email
+    const normalizedRole = (role?.toLowerCase() ?? "candidate") as (typeof allowedRoles)[number]
+    if (!allowedRoles.includes(normalizedRole)) {
+      return NextResponse.json({ error: "Rol inválido" }, { status: 400 })
+    }
 
-    // Mock successful registration
-    return NextResponse.json({
-      message: "Usuario registrado exitosamente",
-      user: {
-        id: `new-${Date.now()}`,
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    })
+
+    if (existingUser) {
+      return NextResponse.json({ error: "Ya existe un usuario con ese correo" }, { status: 409 })
+    }
+
+    let departmentRecord = null
+    if (department) {
+      departmentRecord = await prisma.department.upsert({
+        where: { name: department },
+        update: {},
+        create: {
+          name: department,
+          description: `${department} (creado desde formulario)`,
+        },
+      })
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    const newUser = await prisma.user.create({
+      data: {
         name,
         email,
-        department,
-        position,
-        role: "candidate", // New users start as candidates
+        role: normalizedRole.toUpperCase() as Role,
+        passwordHash,
+        profile: {
+          create: {
+            employeeCode: `EMP-${Math.floor(Math.random() * 9000 + 1000)}`,
+            position: position || "Sin asignar",
+            departmentId: departmentRecord?.id,
+            status: EmploymentStatus.ACTIVE,
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
       },
     })
+
+    return NextResponse.json(
+      {
+        message: "Cuenta creada exitosamente. Ya puedes iniciar sesión con tus credenciales.",
+        user: newUser,
+      },
+      { status: 201 },
+    )
   } catch (error) {
+    console.error(error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
