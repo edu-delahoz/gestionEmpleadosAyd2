@@ -42,6 +42,8 @@ Este resumen documenta los cambios realizados para implementar la capa de datos 
 - `POST`: valida payload con Zod, delega en `createResource()`, y luego ejecuta `revalidateTag(RESOURCES_CACHE_TAG)` para refrescar vistas que dependan de la lista.
 - Mensajes de error estandarizados vía `buildErrorResponse()`.
 
+### `/api/movements`
+**Archivo:** `app/api/movements/route.ts`
 - `GET`: obliga a enviar `resourceId` (o `masterId` para compatibilidad) por querystring y responde con la lista ordenada.
 - `POST`: valida con Zod (tipo, cantidad, notas) y crea el movimiento.
 - Tras un POST, se revalidan dos tags: `resources` (para balances) y `movements:<resourceId>` (para la tabla de movimientos).
