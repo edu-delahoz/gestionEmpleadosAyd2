@@ -16,6 +16,8 @@ import {
   UserCheck,
   ChevronLeft,
   ChevronRight,
+  Package,
+  RefreshCcw,
 } from "lucide-react"
 import type { Role } from "@/types"
 
@@ -33,7 +35,6 @@ const menuItems = {
   ],
   employee: [
     { icon: Home, label: "Dashboard", href: "/dashboard/employee" },
-    { icon: Clock, label: "Asistencia", href: "/dashboard/employee/attendance" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/employee/requests" },
     { icon: DollarSign, label: "Nómina", href: "/dashboard/employee/payroll" },
     { icon: Bell, label: "Notificaciones", href: "/dashboard/employee/notifications" },
@@ -49,12 +50,10 @@ const menuItems = {
   hr: [
     { icon: Home, label: "Dashboard", href: "/dashboard/hr" },
     { icon: Users, label: "Empleados", href: "/dashboard/hr/employees" },
+    { icon: Package, label: "Recursos", href: "/dashboard/hr/resources" },
+    { icon: RefreshCcw, label: "Movimientos", href: "/dashboard/hr/transactions" },
     { icon: UserCheck, label: "Reclutamiento", href: "/dashboard/hr/recruitment" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/hr/requests" },
-    { icon: Clock, label: "Asistencia", href: "/dashboard/hr/attendance" },
-    { icon: BarChart3, label: "Reportes", href: "/dashboard/hr/reports" },
-    { icon: Bell, label: "Notificaciones", href: "/dashboard/hr/notifications" },
-    { icon: Settings, label: "Configuración", href: "/dashboard/hr/settings" },
   ],
   finance: [
     { icon: Home, label: "Dashboard", href: "/dashboard/finance" },
@@ -67,12 +66,8 @@ const menuItems = {
   admin: [
     { icon: Home, label: "Dashboard", href: "/dashboard/admin" },
     { icon: Users, label: "Empleados", href: "/dashboard/admin/employees" },
-    { icon: Clock, label: "Asistencia", href: "/dashboard/admin/attendance" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/admin/requests" },
     { icon: DollarSign, label: "Nómina", href: "/dashboard/admin/payroll" },
-    { icon: BarChart3, label: "Reportes", href: "/dashboard/admin/reports" },
-    { icon: Bell, label: "Notificaciones", href: "/dashboard/admin/notifications" },
-    { icon: Settings, label: "Configuración", href: "/dashboard/admin/settings" },
   ],
 }
 

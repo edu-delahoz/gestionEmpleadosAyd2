@@ -15,11 +15,11 @@ import { Badge } from "@/components/ui/badge"
 import { Bell, Moon, Sun, LogOut, User, Settings } from "lucide-react"
 import { useTheme } from "next-themes"
 import Link from "next/link"
-import type { User as UserType } from "@/types"
 import { getInitials } from "@/lib/utils"
+import type { Session } from "next-auth"
 
 interface HeaderProps {
-  user: UserType
+  user: Session["user"]
   onLogout: () => void
 }
 
@@ -43,6 +43,8 @@ export function Header({ user, onLogout }: HeaderProps) {
   const getProfileUrl = () => {
     return `/dashboard/${user.role}/profile`
   }
+
+  const avatarInitial = getInitials(user.name ?? "", user.email?.charAt(0) ?? undefined)
 
   return (
     <header className="flex items-center justify-between px-6 py-4 bg-background border-b border-border">
@@ -83,13 +85,11 @@ export function Header({ user, onLogout }: HeaderProps) {
 
         {/* User menu */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                <AvatarFallback className="text-xs">{getInitials(user.name)}</AvatarFallback>
-              </Avatar>
-            </Button>
+          <DropdownMenuTrigger className="relative h-8 w-8 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+            <Avatar className="h-8 w-8 cursor-pointer border border-border">
+              {user.image && <AvatarImage src={user.image} alt={user.name ?? "Usuario"} />}
+              <AvatarFallback className="text-xs">{avatarInitial}</AvatarFallback>
+            </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
@@ -98,19 +98,6 @@ export function Header({ user, onLogout }: HeaderProps) {
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={getProfileUrl()}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Configuración</span>
-              </Link>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>
               <LogOut className="mr-2 h-4 w-4" />

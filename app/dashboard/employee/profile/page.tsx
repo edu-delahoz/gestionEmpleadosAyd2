@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,15 +11,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { User, Calendar, Briefcase, Save, Edit } from "lucide-react"
-import { getCurrentUser } from "@/lib/auth"
 import { getInitials } from "@/lib/utils"
 
 export default function EmployeeProfilePage() {
-  const user = getCurrentUser()
+  const { data: session, status } = useSession()
+  const user = session?.user
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
+    name: user?.name ?? "",
+    email: user?.email ?? "",
     phone: "+57 300 123 4567",
     address: "Calle 123 #45-67, Bogotá, Colombia",
     bio: "Empleado dedicado con experiencia en el área de desarrollo de software.",
@@ -38,7 +39,17 @@ export default function EmployeeProfilePage() {
     setIsEditing(false)
   }
 
-  if (!user) return null
+  if (!user || status === "loading") {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const initials = getInitials(user.name ?? "", user.email?.charAt(0) ?? undefined)
 
   return (
     <DashboardLayout>
@@ -69,8 +80,8 @@ export default function EmployeeProfilePage() {
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                  <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
+                  {user.image && <AvatarImage src={user.image} alt={user.name ?? "Usuario"} />}
+                  <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
                 </Avatar>
               </div>
               <CardTitle className="text-xl">{formData.name}</CardTitle>

@@ -121,6 +121,20 @@ gestionEmpleadosAyd2/
    ```
 4. Accede a la aplicación en `http://localhost:3000`
 
+## Usuarios de prueba
+
+Después de correr `npx prisma db seed`, tendrás estas cuentas disponibles para iniciar sesión con correo/contraseña:
+
+| Rol           | Correo                | Contraseña    |
+|---------------|-----------------------|---------------|
+| Administrador | `admin@udea.edu.co`   | `Admin123*`   |
+| Recursos Humanos | `rrhh@udea.edu.co` | `Rh123*`      |
+| Gerente       | `manager@udea.edu.co` | `Manager123*` |
+| Empleado      | `employee@udea.edu.co`| `Employee123*`|
+
+También puedes usar el botón “Continuar con Google” si tienes un cliente OAuth configurado en `.env`.
+Si necesitas otro rol con credenciales propias, visita `/register` y genera una cuenta indicando el rol deseado.
+
 ---
 
 ## Créditos
@@ -139,3 +153,14 @@ Proyecto académico para la materia **Análisis y Diseño de Sistemas 2**.
 ## Notas Adicionales
 
 Este proyecto es una simulación académica. Para consultas contactame a través de GitHub (edu-delahoz).
+
+---
+
+## API de Recursos Estratégicos y Movimientos
+
+- **`POST /api/resources`**: crea un recurso estratégico (solo roles `hr` y `admin`). Requiere campos `name` e `initialBalance`. Opcionales: `description`, `departmentId`, `status`.
+- **`GET /api/resources`**: devuelve el catálogo completo con saldos actual/ inicial, departamento y creador.
+- **`POST /api/movements`**: registra entradas, salidas o ajustes para un recurso. Cualquier rol autenticado (`employee`, `manager`, `hr`, `admin`) puede enviar `resourceId`, `movementType` (`ENTRY`, `EXIT`, `ADJUSTMENT`), `quantity`, `notes?`, `referencePeriod?`.
+- **`GET /api/movements?resourceId=...`**: lista el historial de movimientos del recurso indicado.
+
+> Recomendación: primero crea recursos desde `/dashboard/hr/resources`, luego usa `/dashboard/hr/transactions` para monitorear y registrar movimientos. Las acciones sensibles se ocultan automáticamente si tu rol no tiene permisos.
