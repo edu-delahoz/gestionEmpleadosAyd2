@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
 import { Role, EmploymentStatus } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 

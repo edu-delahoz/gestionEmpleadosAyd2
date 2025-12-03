@@ -6,7 +6,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { Role as PrismaRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import type { Role } from "@/types"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
 
 const normalizeRole = (role?: PrismaRole): Role => {
   const fallback: Role = "candidate"
