@@ -269,7 +269,9 @@ export default function HRDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <NewEmployeeDialog
                 departments={data?.departmentsCatalog ?? []}
-                onCreated={refresh}
+                onCreated={() => {
+                  refresh()
+                }}
                 trigger={newEmployeeTrigger}
               />
               <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent" asChild>

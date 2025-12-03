@@ -24,7 +24,7 @@ export type DepartmentOption = {
 
 export type NewEmployeeDialogProps = {
   departments: DepartmentOption[]
-  onCreated?: () => void
+  onCreated?: (result: { temporaryPassword: string; employee: { id: string; name: string | null; email: string | null } }) => void
   trigger: ReactNode
 }
 
@@ -83,7 +83,14 @@ export function NewEmployeeDialog({ departments, onCreated, trigger }: NewEmploy
 
       setForm(initialFormState)
       setOpen(false)
-      onCreated?.()
+      onCreated?.({
+        temporaryPassword: payload.temporaryPassword,
+        employee: {
+          id: payload.employee.id,
+          name: payload.employee.name ?? null,
+          email: payload.employee.email ?? null,
+        },
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : "Error al crear empleado"
       toast({

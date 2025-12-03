@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,116 +20,136 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { FileText, Plus, Calendar, Clock, DollarSign, FileCheck } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { FileText, Plus, Calendar, Clock } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 
+type RequestRecord = {
+  id: string
+  type: string
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"
+  startDate: string | null
+  endDate: string | null
+  days: number | null
+  reason: string | null
+  createdAt: string
+  department: string | null
+}
+
+const requestTypes = [
+  { value: "vacation", label: "Vacaciones", icon: Calendar },
+  { value: "other", label: "Otro", icon: FileText },
+]
+
+const statusConfig: Record<RequestRecord["status"], { label: string; variant: "default" | "secondary" | "destructive" }> = {
+  PENDING: { label: "Pendiente", variant: "secondary" },
+  APPROVED: { label: "Aprobada", variant: "default" },
+  REJECTED: { label: "Rechazada", variant: "destructive" },
+  CANCELLED: { label: "Cancelada", variant: "secondary" },
+}
+
+const formatOptionalDate = (value: string | null) => (value ? formatDate(value) : "Sin asignar")
+
 export default function EmployeeRequestsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [requests, setRequests] = useState<RequestRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [requestForm, setRequestForm] = useState({
     type: "",
     startDate: "",
     endDate: "",
     reason: "",
-    attachment: null as File | null,
   })
 
-  // Mock requests data
-  const requests = [
-    {
-      id: 1,
-      type: "vacation",
-      startDate: "2024-02-01",
-      endDate: "2024-02-05",
-      days: 5,
-      reason: "Vacaciones familiares",
-      status: "pending",
-      createdAt: "2024-01-15T10:00:00Z",
-      approver: "María López",
-    },
-    {
-      id: 2,
-      type: "sick",
-      startDate: "2024-01-10",
-      endDate: "2024-01-10",
-      days: 1,
-      reason: "Cita médica",
-      status: "approved",
-      createdAt: "2024-01-08T09:00:00Z",
-      approver: "María López",
-      approvedAt: "2024-01-09T15:30:00Z",
-    },
-    {
-      id: 3,
-      type: "personal",
-      startDate: "2024-01-05",
-      endDate: "2024-01-05",
-      days: 1,
-      reason: "Trámites personales",
-      status: "rejected",
-      createdAt: "2024-01-03T14:00:00Z",
-      approver: "María López",
-      rejectedAt: "2024-01-04T11:00:00Z",
-    },
-  ]
-
-  const requestTypes = [
-    { value: "vacation", label: "Vacaciones", icon: Calendar },
-    { value: "sick", label: "Incapacidad", icon: FileCheck },
-    { value: "personal", label: "Permiso Personal", icon: Clock },
-    { value: "maternity", label: "Licencia de Maternidad", icon: FileText },
-    { value: "paternity", label: "Licencia de Paternidad", icon: FileText },
-  ]
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Badge className="bg-orange-100 text-orange-800">Pendiente</Badge>
-      case "approved":
-        return <Badge className="bg-green-100 text-green-800">Aprobada</Badge>
-      case "rejected":
-        return <Badge variant="destructive">Rechazada</Badge>
-      default:
-        return <Badge variant="outline">Desconocido</Badge>
+  const fetchRequests = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/requests", { cache: "no-store" })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error ?? "No se pudieron obtener tus solicitudes")
+      }
+      const payload = (await response.json()) as RequestRecord[]
+      setRequests(payload)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error desconocido"
+      setError(message)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    fetchRequests()
+  }, [])
+
+  const stats = useMemo(() => {
+    const pending = requests.filter((request) => request.status === "PENDING").length
+    const approved = requests.filter((request) => request.status === "APPROVED").length
+    const rejected = requests.filter((request) => request.status === "REJECTED").length
+    return {
+      total: requests.length,
+      pending,
+      approved,
+      rejected,
+    }
+  }, [requests])
+
+  const getStatusBadge = (status: RequestRecord["status"]) => {
+    const config = statusConfig[status]
+    return <Badge variant={config?.variant ?? "secondary"}>{config?.label ?? status}</Badge>
   }
 
   const getTypeIcon = (type: string) => {
     const requestType = requestTypes.find((t) => t.value === type)
-    if (requestType) {
-      const Icon = requestType.icon
-      return <Icon className="h-4 w-4" />
-    }
-    return <FileText className="h-4 w-4" />
+    const Icon = requestType?.icon ?? FileText
+    return <Icon className="h-4 w-4" />
   }
 
-  const getTypeLabel = (type: string) => {
-    const requestType = requestTypes.find((t) => t.value === type)
-    return requestType?.label || type
-  }
+  const getTypeLabel = (type: string) => requestTypes.find((t) => t.value === type)?.label ?? type
 
-  const handleSubmitRequest = () => {
+  const handleSubmitRequest = async () => {
     if (!requestForm.type || !requestForm.startDate || !requestForm.reason) {
       toast.error("Por favor completa todos los campos requeridos")
       return
     }
 
-    // Mock submission
-    toast.success("Solicitud enviada exitosamente")
-    setIsDialogOpen(false)
-    setRequestForm({
-      type: "",
-      startDate: "",
-      endDate: "",
-      reason: "",
-      attachment: null,
-    })
-  }
+    setIsSubmitting(true)
+    try {
+      const response = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: requestForm.type,
+          startDate: requestForm.startDate,
+          endDate: requestForm.endDate || undefined,
+          reason: requestForm.reason.trim(),
+        }),
+      })
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setRequestForm({ ...requestForm, attachment: file })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error ?? "No se pudo enviar la solicitud")
+      }
+
+      toast.success("Solicitud enviada exitosamente")
+      setIsDialogOpen(false)
+      setRequestForm({
+        type: "",
+        startDate: "",
+        endDate: "",
+        reason: "",
+      })
+      fetchRequests()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error desconocido"
+      toast.error(message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -145,18 +165,18 @@ export default function EmployeeRequestsPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Nueva Solicitud
+                Nueva solicitud
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Nueva Solicitud</DialogTitle>
-                <DialogDescription>Completa el formulario para enviar tu solicitud</DialogDescription>
+                <DialogTitle>Nueva solicitud</DialogTitle>
+                <DialogDescription>Completa el formulario para enviar tu solicitud.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Tipo de Solicitud</Label>
-                  <Select onValueChange={(value) => setRequestForm({ ...requestForm, type: value })}>
+                  <Label htmlFor="type">Tipo de solicitud</Label>
+                  <Select value={requestForm.type} onValueChange={(value) => setRequestForm((prev) => ({ ...prev, type: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona el tipo" />
                     </SelectTrigger>
@@ -175,21 +195,21 @@ export default function EmployeeRequestsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate">Fecha de Inicio</Label>
+                    <Label htmlFor="startDate">Fecha de inicio</Label>
                     <Input
                       id="startDate"
                       type="date"
                       value={requestForm.startDate}
-                      onChange={(e) => setRequestForm({ ...requestForm, startDate: e.target.value })}
+                      onChange={(event) => setRequestForm((prev) => ({ ...prev, startDate: event.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="endDate">Fecha de Fin</Label>
+                    <Label htmlFor="endDate">Fecha de fin</Label>
                     <Input
                       id="endDate"
                       type="date"
                       value={requestForm.endDate}
-                      onChange={(e) => setRequestForm({ ...requestForm, endDate: e.target.value })}
+                      onChange={(event) => setRequestForm((prev) => ({ ...prev, endDate: event.target.value }))}
                     />
                   </div>
                 </div>
@@ -198,147 +218,93 @@ export default function EmployeeRequestsPage() {
                   <Label htmlFor="reason">Motivo</Label>
                   <Textarea
                     id="reason"
-                    placeholder="Describe el motivo de tu solicitud..."
                     value={requestForm.reason}
-                    onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
+                    onChange={(event) => setRequestForm((prev) => ({ ...prev, reason: event.target.value }))}
+                    placeholder="Describe brevemente la razón de tu solicitud"
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="attachment">Adjunto (Opcional)</Label>
-                  <Input id="attachment" type="file" onChange={handleFileChange} accept=".pdf,.doc,.docx,.jpg,.png" />
-                  {requestForm.attachment && (
-                    <p className="text-sm text-muted-foreground">Archivo: {requestForm.attachment.name}</p>
-                  )}
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
                   Cancelar
                 </Button>
-                <Button type="button" onClick={handleSubmitRequest}>
-                  Enviar Solicitud
+                <Button onClick={handleSubmitRequest} disabled={isSubmitting}>
+                  {isSubmitting ? "Enviando..." : "Enviar solicitud"}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Request Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {error && (
+          <Alert variant="destructive">
+            <AlertTitle>No pudimos cargar tus solicitudes</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Solicitudes</CardTitle>
+            <CardHeader className="flex items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de solicitudes</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{requests.length}</div>
-              <p className="text-xs text-muted-foreground">Este año</p>
+              <div className="text-2xl font-bold">{stats.total}</div>
+              <p className="text-xs text-muted-foreground">Historial completo</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pendientes</CardTitle>
-              <Clock className="h-4 w-4 text-orange-600" />
+              <Calendar className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {requests.filter((r) => r.status === "pending").length}
-              </div>
-              <p className="text-xs text-muted-foreground">En revisión</p>
+              <div className="text-2xl font-bold text-orange-600">{stats.pending}</div>
+              <p className="text-xs text-muted-foreground">En revisión por RR.HH.</p>
             </CardContent>
           </Card>
-
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Aprobadas</CardTitle>
-              <FileCheck className="h-4 w-4 text-green-600" />
+              <Clock className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {requests.filter((r) => r.status === "approved").length}
-              </div>
-              <p className="text-xs text-muted-foreground">Autorizadas</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Días Disponibles</CardTitle>
-              <Calendar className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">15</div>
-              <p className="text-xs text-muted-foreground">Vacaciones restantes</p>
+              <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+              <p className="text-xs text-muted-foreground">Listas para programar</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Requests List */}
         <Card>
           <CardHeader>
-            <CardTitle>Mis Solicitudes</CardTitle>
-            <CardDescription>Historial de todas tus solicitudes</CardDescription>
+            <CardTitle>Historial de solicitudes</CardTitle>
+            <CardDescription>Revisa tus solicitudes enviadas y su estado</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {requests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    {getTypeIcon(request.type)}
+          <CardContent className="space-y-4">
+            {loading && <p className="text-sm text-muted-foreground">Cargando solicitudes...</p>}
+            {!loading && requests.length === 0 && <p className="text-sm text-muted-foreground">Aún no has enviado solicitudes.</p>}
+            {requests.map((request) => (
+              <div key={request.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10 text-primary">{getTypeIcon(request.type)}</div>
                     <div>
                       <p className="font-medium">{getTypeLabel(request.type)}</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatDate(request.startDate)}
-                        {request.endDate !== request.startDate && ` - ${formatDate(request.endDate)}`} ({request.days}{" "}
-                        {request.days === 1 ? "día" : "días"})
-                      </p>
-                      <p className="text-sm text-muted-foreground">{request.reason}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Enviado: {formatDate(request.createdAt)} | Revisor: {request.approver}
+                        {formatOptionalDate(request.startDate)} • {request.days ?? 1} {request.days === 1 ? "día" : "días"}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right space-y-2">
-                    {getStatusBadge(request.status)}
-                    <div>
-                      <Button size="sm" variant="outline">
-                        Ver Detalles
-                      </Button>
-                    </div>
-                  </div>
+                  {getStatusBadge(request.status)}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Acciones Rápidas</CardTitle>
-            <CardDescription>Solicitudes comunes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent">
-                <Calendar className="h-5 w-5" />
-                <span className="text-sm">Vacaciones</span>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent">
-                <FileCheck className="h-5 w-5" />
-                <span className="text-sm">Incapacidad</span>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent">
-                <Clock className="h-5 w-5" />
-                <span className="text-sm">Permiso Personal</span>
-              </Button>
-              <Button variant="outline" className="h-20 flex flex-col gap-2 bg-transparent">
-                <DollarSign className="h-5 w-5" />
-                <span className="text-sm">Reembolso</span>
-              </Button>
-            </div>
+                <p className="text-sm">{request.reason ?? "Sin motivo especificado"}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 text-xs text-muted-foreground gap-2">
+                  <span>Registrada: {formatDate(request.createdAt)}</span>
+                  <span>Departamento: {request.department ?? "General"}</span>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
