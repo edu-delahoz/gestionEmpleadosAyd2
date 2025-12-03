@@ -35,7 +35,6 @@ const menuItems = {
   ],
   employee: [
     { icon: Home, label: "Dashboard", href: "/dashboard/employee" },
-    { icon: Clock, label: "Asistencia", href: "/dashboard/employee/attendance" },
     { icon: FileText, label: "Solicitudes", href: "/dashboard/employee/requests" },
     { icon: DollarSign, label: "Nómina", href: "/dashboard/employee/payroll" },
     { icon: Bell, label: "Notificaciones", href: "/dashboard/employee/notifications" },

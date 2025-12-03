@@ -87,7 +87,13 @@ export default function HREmployeesPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               Actualizar
             </Button>
-            <NewEmployeeDialog departments={departments} trigger={newEmployeeTrigger} onCreated={refresh} />
+            <NewEmployeeDialog
+              departments={departments}
+              trigger={newEmployeeTrigger}
+              onCreated={() => {
+                refresh()
+              }}
+            />
           </div>
         </div>
 

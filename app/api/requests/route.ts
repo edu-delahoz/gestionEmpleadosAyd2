@@ -1,75 +1,130 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { EmployeeRequestStatus, EmployeeRequestType } from "@prisma/client"
+
+import { getSessionUser } from "@/lib/api/session"
+import { prisma } from "@/lib/prisma"
+import { requestInclude, serializeRequest } from "@/lib/api/requests"
+
+const requestSchema = z.object({
+  type: z.enum(["vacation", "other"]),
+  startDate: z.string(),
+  endDate: z.string().optional().nullable(),
+  reason: z.string().min(5, "Describe brevemente el motivo"),
+})
+
+const canViewAll = (role: string) => role === "hr" || role === "admin"
 
 export async function POST(request: NextRequest) {
+  const user = await getSessionUser()
+  if (!user) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  }
+
+  const payload = await request.json().catch(() => null)
+  const parsed = requestSchema.safeParse(payload)
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Datos inválidos", details: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    )
+  }
+
   try {
-    const { employeeId, type, startDate, endDate, reason, attachment } = await request.json()
-
-    if (!employeeId || !type || !startDate || !reason) {
-      return NextResponse.json({ error: "Datos requeridos faltantes" }, { status: 400 })
-    }
-
-    // In a real app, you'd:
-    // 1. Validate the employee exists
-    // 2. Check business rules (available days, etc.)
-    // 3. Save to database
-    // 4. Notify approvers
-    // 5. Handle file uploads
-
-    const mockRequest = {
-      id: `request-${Date.now()}`,
-      employeeId,
-      type,
-      startDate,
-      endDate: endDate || startDate,
-      reason,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      attachment: attachment ? `${attachment.name}` : null,
-    }
-
-    return NextResponse.json({
-      message: "Solicitud creada exitosamente",
-      request: mockRequest,
+    const profile = await prisma.profile.findUnique({
+      where: { userId: user.id },
+      select: { id: true, departmentId: true },
     })
+
+    if (!profile) {
+      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 })
+    }
+
+    const { startDate, endDate, type, reason } = parsed.data
+    const start = new Date(startDate)
+    const end = endDate ? new Date(endDate) : start
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return NextResponse.json({ error: "Fechas inválidas" }, { status: 400 })
+    }
+
+    if (end < start) {
+      return NextResponse.json({ error: "La fecha de fin debe ser posterior a la de inicio" }, { status: 400 })
+    }
+
+    const ONE_DAY = 1000 * 60 * 60 * 24
+    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / ONE_DAY) + 1)
+
+    const newRequest = await prisma.employeeRequest.create({
+      data: {
+        profileId: profile.id,
+        departmentId: profile.departmentId,
+        type: type.toUpperCase() as EmployeeRequestType,
+        reason: reason.trim(),
+        status: EmployeeRequestStatus.PENDING,
+        startDate: start,
+        endDate: end,
+        days,
+      },
+      include: requestInclude,
+    })
+
+    return NextResponse.json({ message: "Solicitud creada exitosamente", request: serializeRequest(newRequest) }, { status: 201 })
   } catch (error) {
+    console.error("[requests] POST", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
 
 export async function GET(request: NextRequest) {
+  const user = await getSessionUser()
+  if (!user) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const statusParam = searchParams.get("status")
+  const profileIdQuery = searchParams.get("profileId")
+  const includeAll = searchParams.get("all") === "true"
+
   try {
-    const { searchParams } = new URL(request.url)
-    const employeeId = searchParams.get("employeeId")
-    const status = searchParams.get("status")
+    const where: Record<string, unknown> = {}
 
-    // Mock requests data - in real app, fetch from database
-    const mockRequests = [
-      {
-        id: 1,
-        employeeId: "EMP004",
-        type: "vacation",
-        startDate: "2024-02-01",
-        endDate: "2024-02-05",
-        days: 5,
-        reason: "Vacaciones familiares",
-        status: "pending",
-        createdAt: "2024-01-15T10:00:00Z",
-      },
-      // Add more mock data as needed
-    ]
-
-    let filteredRequests = mockRequests
-
-    if (employeeId) {
-      filteredRequests = filteredRequests.filter((r) => r.employeeId === employeeId)
+    if (statusParam) {
+      const normalized = statusParam.toUpperCase() as EmployeeRequestStatus
+      if (!Object.values(EmployeeRequestStatus).includes(normalized)) {
+        return NextResponse.json({ error: "Estado inválido" }, { status: 400 })
+      }
+      where.status = normalized
     }
 
-    if (status) {
-      filteredRequests = filteredRequests.filter((r) => r.status === status)
+    if (canViewAll(user.role) && (includeAll || profileIdQuery)) {
+      if (profileIdQuery) {
+        where.profileId = profileIdQuery
+      }
+    } else {
+      const profile = await prisma.profile.findUnique({
+        where: { userId: user.id },
+        select: { id: true },
+      })
+
+      if (!profile) {
+        return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 })
+      }
+
+      where.profileId = profile.id
     }
 
-    return NextResponse.json(filteredRequests)
+    const requests = await prisma.employeeRequest.findMany({
+      where,
+      include: requestInclude,
+      orderBy: { createdAt: "desc" },
+    })
+
+    return NextResponse.json(requests.map(serializeRequest))
   } catch (error) {
+    console.error("[requests] GET", error)
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }

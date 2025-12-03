@@ -56,6 +56,7 @@ export default function AdminEmployeesPage() {
   const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null)
   const NO_DEPARTMENT = "__none__"
   const [editForm, setEditForm] = useState({ position: "", departmentId: NO_DEPARTMENT, salary: "" })
+  const [newPasswordInfo, setNewPasswordInfo] = useState<{ name: string; email: string | null; password: string } | null>(null)
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
@@ -127,6 +128,16 @@ export default function AdminEmployeesPage() {
     }
   }
 
+  const handleCopyPassword = async () => {
+    if (!newPasswordInfo) return
+    try {
+      await navigator.clipboard.writeText(newPasswordInfo.password)
+      toast({ title: "Contraseña copiada", description: newPasswordInfo.password })
+    } catch {
+      toast({ title: "No se pudo copiar la contraseña", variant: "destructive" })
+    }
+  }
+
   const handleUpdateEmployee = async () => {
     if (!editEmployeeId) return
 
@@ -176,9 +187,36 @@ export default function AdminEmployeesPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
               Actualizar
             </Button>
-            <NewEmployeeDialog departments={departments} trigger={newEmployeeTrigger} onCreated={refresh} />
+            <NewEmployeeDialog
+              departments={departments}
+              trigger={newEmployeeTrigger}
+              onCreated={(result) => {
+                refresh()
+                setNewPasswordInfo({
+                  name: result.employee.name ?? "Nuevo empleado",
+                  email: result.employee.email,
+                  password: result.temporaryPassword,
+                })
+              }}
+            />
           </div>
         </div>
+
+        {newPasswordInfo && (
+          <Alert>
+            <AlertTitle>Nuevo acceso generado</AlertTitle>
+            <div className="mt-2 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">{newPasswordInfo.name}</p>
+                <p className="text-muted-foreground">{newPasswordInfo.email ?? "Sin correo"}</p>
+                <p className="font-mono text-base mt-1">{newPasswordInfo.password}</p>
+              </div>
+              <Button size="sm" onClick={handleCopyPassword}>
+                Copiar contraseña
+              </Button>
+            </div>
+          </Alert>
+        )}
 
         {error && (
           <Alert variant="destructive">
