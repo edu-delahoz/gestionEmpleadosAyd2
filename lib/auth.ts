@@ -81,10 +81,10 @@ export const authOptions: NextAuthOptions = {
       try {
         await prisma.user.update({
           where: { id: userId },
-          data: { role: PrismaRole.EMPLOYEE },
+          data: { role: PrismaRole.ADMIN },
         })
       } catch (error) {
-        console.error("[auth] failed to set employee role for OAuth user", error)
+        console.error("[auth] failed to set admin role for OAuth user", error)
       }
     },
   },
