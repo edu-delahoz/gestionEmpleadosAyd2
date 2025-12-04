@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
@@ -16,27 +17,132 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DollarSign, Users, TrendingUp, Calendar, Download, FileText } from "lucide-react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
+
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline"
+
+type PayrollSummary = {
+  totalPayroll: number
+  employeeCount: number
+  avgSalary: number
+  processedCycles: number
+  pendingCycles: number
+  latestPeriod: string | null
+}
+
+type PayrollCycleRow = {
+  id: string
+  period: string
+  status: string
+  totalGross: number
+  totalDeductions: number
+  totalNet: number
+  processedAt: string | null
+  processedBy: string | null
+  entriesCount: number
+}
+
+type PayrollEntryRow = {
+  id: string
+  employeeName: string
+  employeeEmail: string
+  department: string
+  netPay: number
+  period: string
+  status: string
+  paidAt: string
+}
+
+type AdminPayrollResponse = {
+  summary: PayrollSummary
+  cycles: PayrollCycleRow[]
+  entries: PayrollEntryRow[]
+}
+
+const statusMeta: Record<string, { label: string; variant: BadgeVariant }> = {
+  processed: { label: "Procesada", variant: "default" },
+  paid: { label: "Pagada", variant: "default" },
+  processing: { label: "En proceso", variant: "secondary" },
+  draft: { label: "Borrador", variant: "outline" },
+}
+
+const periodFormatter = new Intl.DateTimeFormat("es-CO", { month: "long", year: "numeric" })
+
+const formatPeriodLabel = (period: string | null) => {
+  if (!period) return "Sin periodo"
+  const [year, month] = period.split("-").map((value) => Number(value))
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return period
+  return periodFormatter.format(new Date(year, month - 1, 1))
+}
+
+const getStatusMeta = (status: string) => statusMeta[status] ?? { label: status, variant: "outline" }
 
 export default function AdminPayrollPage() {
   const [isProcessingPayroll, setIsProcessingPayroll] = useState(false)
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState("2024-01")
+  const [payrollData, setPayrollData] = useState<AdminPayrollResponse | null>(null)
+  const [loadingData, setLoadingData] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshIndex, setRefreshIndex] = useState(0)
 
-  const payrollStats = {
-    totalPayroll: 185000000,
-    employeeCount: 45,
-    avgSalary: 4111111,
-    processed: 42,
-    pending: 3,
-  }
+  useEffect(() => {
+    let isMounted = true
+
+    const loadData = async () => {
+      setLoadingData(true)
+      try {
+        const response = await fetch("/api/admin/payroll", { cache: "no-store" })
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          throw new Error(payload?.error ?? "No se pudo cargar la nómina")
+        }
+
+        const payload = (await response.json()) as AdminPayrollResponse
+        if (isMounted) {
+          setPayrollData(payload)
+          setError(null)
+        }
+      } catch (loadError) {
+        console.error("[admin payroll] load error", loadError)
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : "No se pudo cargar la nómina")
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingData(false)
+        }
+      }
+    }
+
+    loadData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [refreshIndex])
+
+  const summary =
+    payrollData?.summary ?? ({
+      totalPayroll: 0,
+      employeeCount: 0,
+      avgSalary: 0,
+      processedCycles: 0,
+      pendingCycles: 0,
+      latestPeriod: null,
+    } as PayrollSummary)
+
+  const cycles = payrollData?.cycles ?? []
+  const entries = payrollData?.entries ?? []
+
+  const refreshPayrollData = () => setRefreshIndex((previous) => previous + 1)
 
   const handleProcessPayroll = () => {
     console.log("[v0] Processing payroll for month:", selectedMonth)
     setIsProcessingPayroll(true)
-    // Simulate processing
     setTimeout(() => {
       setIsProcessingPayroll(false)
+      refreshPayrollData()
       alert("Nómina procesada exitosamente")
     }, 2000)
   }
@@ -44,7 +150,6 @@ export default function AdminPayrollPage() {
   const handleGenerateReport = () => {
     console.log("[v0] Generating payroll report")
     setIsGeneratingReport(true)
-    // Simulate report generation
     setTimeout(() => {
       setIsGeneratingReport(false)
       alert("Reporte generado y descargado")
@@ -53,12 +158,10 @@ export default function AdminPayrollPage() {
 
   const handleManageSalaries = () => {
     console.log("[v0] Opening salary management")
-    // Navigate to salary management page
   }
 
   const handleViewCalendar = () => {
     console.log("[v0] Opening payroll calendar")
-    // Navigate to payroll calendar
   }
 
   return (
@@ -102,7 +205,12 @@ export default function AdminPayrollPage() {
           </Dialog>
         </div>
 
-        {/* Stats */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -110,8 +218,12 @@ export default function AdminPayrollPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(payrollStats.totalPayroll)}</div>
-              <p className="text-xs text-muted-foreground">Enero 2024</p>
+              <div className="text-2xl font-bold">
+                {loadingData ? "..." : formatCurrency(summary.totalPayroll)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {summary.latestPeriod ? formatPeriodLabel(summary.latestPeriod) : "Sin periodos procesados"}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -120,7 +232,7 @@ export default function AdminPayrollPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{payrollStats.employeeCount}</div>
+              <div className="text-2xl font-bold">{loadingData ? "..." : summary.employeeCount}</div>
               <p className="text-xs text-muted-foreground">Total activos</p>
             </CardContent>
           </Card>
@@ -130,7 +242,9 @@ export default function AdminPayrollPage() {
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(payrollStats.avgSalary)}</div>
+              <div className="text-2xl font-bold">
+                {loadingData ? "..." : formatCurrency(summary.avgSalary)}
+              </div>
               <p className="text-xs text-muted-foreground">Por empleado</p>
             </CardContent>
           </Card>
@@ -140,13 +254,16 @@ export default function AdminPayrollPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{payrollStats.processed}</div>
-              <p className="text-xs text-muted-foreground">{payrollStats.pending} pendientes</p>
+              <div className="text-2xl font-bold text-green-600">
+                {loadingData ? "..." : summary.processedCycles}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {loadingData ? "..." : `${summary.pendingCycles} pendientes`}
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Payroll Management */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -155,22 +272,32 @@ export default function AdminPayrollPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span>Nómina de Enero 2024</span>
-                  <Badge>Procesada</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Bonificaciones</span>
-                  <Badge variant="secondary">Pendiente</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Deducciones</span>
-                  <Badge>Completada</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Reportes fiscales</span>
-                  <Badge>Completada</Badge>
-                </div>
+                {loadingData && <p className="text-sm text-muted-foreground">Cargando periodos...</p>}
+                {!loadingData && cycles.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No hay ciclos registrados.</p>
+                )}
+                {cycles.slice(0, 4).map((cycle) => {
+                  const meta = getStatusMeta(cycle.status)
+                  return (
+                    <div key={cycle.id} className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium">Periodo {cycle.period}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {cycle.processedAt
+                            ? `Procesada el ${formatDate(cycle.processedAt)}`
+                            : "Sin fecha de procesamiento"}
+                        </p>
+                        {cycle.processedBy && (
+                          <p className="text-xs text-muted-foreground">Por {cycle.processedBy}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(cycle.totalNet)}</p>
+                        <Badge variant={meta.variant}>{meta.label}</Badge>
+                      </div>
+                    </div>
+                  )
+                })}
                 <Button
                   variant="outline"
                   className="w-full bg-transparent"
@@ -235,32 +362,34 @@ export default function AdminPayrollPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Nómina Enero 2024</p>
-                    <p className="text-sm text-muted-foreground">45 empleados procesados</p>
+              {loadingData && <p className="text-sm text-muted-foreground">Cargando transacciones...</p>}
+              {!loadingData && entries.length === 0 && (
+                <p className="text-sm text-muted-foreground">No hay pagos registrados en la base de datos.</p>
+              )}
+              {entries.map((entry) => {
+                const meta = getStatusMeta(entry.status)
+                return (
+                  <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg gap-4">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{entry.employeeName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {entry.department} · {formatPeriodLabel(entry.period)}
+                        </p>
+                        {entry.employeeEmail && (
+                          <p className="text-xs text-muted-foreground">{entry.employeeEmail}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">{formatCurrency(entry.netPay)}</p>
+                      <Badge variant={meta.variant}>{meta.label}</Badge>
+                      <p className="text-xs text-muted-foreground mt-1">{formatDate(entry.paidAt)}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium">{formatCurrency(payrollStats.totalPayroll)}</p>
-                  <Badge>Completada</Badge>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Bonificaciones Q4 2023</p>
-                    <p className="text-sm text-muted-foreground">42 empleados elegibles</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium">{formatCurrency(25000000)}</p>
-                  <Badge>Completada</Badge>
-                </div>
-              </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>

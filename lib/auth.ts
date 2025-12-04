@@ -71,5 +71,22 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
+  events: {
+    async createUser({ user }) {
+      const userId = typeof user.id === "string" ? user.id : null
+      if (!userId) {
+        return
+      }
+
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { role: PrismaRole.EMPLOYEE },
+        })
+      } catch (error) {
+        console.error("[auth] failed to set employee role for OAuth user", error)
+      }
+    },
+  },
   secret: process.env.NEXTAUTH_SECRET,
 }
